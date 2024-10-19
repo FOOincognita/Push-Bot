@@ -1,32 +1,31 @@
-import os
+from os import getenv
 import discord
-from discord.ext import commands
+from discord.ext import commands as cmd
 from flask import Flask, request, abort
-import threading
-import asyncio
+from threading import Thread
+from asyncio import run_coroutine_threadsafe as coroutine
 import hmac
 import hashlib
+from sys import __stderr__
+import os
 
-# Discord bot setup
+#* Setup
+app     = Flask(__name__)
 intents = discord.Intents.default()
-bot     = commands.Bot(command_prefix='!', intents=intents)
+bot     = cmd.Bot(command_prefix='!', intents=intents)
 
-# Flask app setup
-app = Flask(__name__)
-
-#! Replace this with the ID of your #push-announcements channel
-TOKEN         = os.getenv('DISCORD_BOT_TOKEN')
-PUSH_CHANNEL  = os.getenv("PUSH_CHANNEL")
-GITHUB_SECRET = os.getenv("GITHUB_SECRET")
+#* Environment variables
+TOKEN         = getenv('DISCORD_BOT_TOKEN')
+PUSH_CHANNEL  = int(getenv("PUSH_CHANNEL")) 
+GITHUB_SECRET = getenv("GITHUB_SECRET")
 
 # Route for GitHub webhook
 @app.route('/github-webhook', methods=['POST'])
 def githubWebhook() -> tuple[str, int]:
     if request.method == 'POST':
         # Verify the request signature
-        signature = request.headers.get('X-Hub-Signature-256')
-        
-        if signature is None: abort(403)
+        if (signature := request.headers.get('X-Hub-Signature-256')) is None: 
+            abort(403)
             
         _, signature = signature.split('=')
         
@@ -38,10 +37,11 @@ def githubWebhook() -> tuple[str, int]:
             
         if not hmac.compare_digest(mac.hexdigest(), signature):
             abort(403)
-
+            
+        #* Parse Payload
         payload   = request.json
-        repoName  = payload['repository']['name']
         username  = payload['pusher']['name']
+        repoName  = payload['repository']['name']
         commitMsg = payload['head_commit']['message']
 
         #* Create embed msg
@@ -61,25 +61,26 @@ def githubWebhook() -> tuple[str, int]:
         )
 
         # Send the message to Discord
-        channel = bot.get_channel(PUSH_CHANNEL)
+        chan = bot.get_channel(PUSH_CHANNEL)
         
-        if channel:
-            asyncio.run_coroutine_threadsafe(channel.send(embed=embed), bot.loop)
-        else:
-            print("Channel not found")
+        if chan:
+            coroutine(chan.send(embed=embed), bot.loop)
+        else:    
+            print("[ERROR]: Channel not found", file=__stderr__)
 
         return '', 200
-    else:
+    
+    else: 
         abort(400)
         
 
-# Run Flask app in a separate thread
-def runFlask(): app.run(host='0.0.0.0', port=5000)
+def runFlask() -> None: 
+    """ Run Flask app in a separate thread """
+    port = int(os.getenv("PORT", 5000))  # Use the port Heroku assigns
+    app.run(host='0.0.0.0', port=port)
 
 if __name__ == "__main__": 
-    # Start the Flask app
-    flaskThread = threading.Thread(target=runFlask)
+    flaskThread = Thread(target=runFlask)
     flaskThread.start()
 
-    # Run bot
     bot.run(TOKEN)
