@@ -44,7 +44,7 @@ def githubWebhook() -> tuple[str, int]:
         username  = payload['pusher']['name']
         commitMsg = payload['head_commit']['message']
 
-        # Create an embed message
+        #* Create embed msg
         embed = discord.Embed(
             title = f"New Commit in {repoName}", 
             color = 0x00ff00
@@ -74,12 +74,12 @@ def githubWebhook() -> tuple[str, int]:
         
 
 # Run Flask app in a separate thread
-def run_flask(): app.run(host='0.0.0.0', port=5000)
+def runFlask(): app.run(host='0.0.0.0', port=5000)
 
 if __name__ == "__main__": 
     # Start the Flask app
-    flask_thread = threading.Thread(target=run_flask)
-    flask_thread.start()
+    flaskThread = threading.Thread(target=runFlask)
+    flaskThread.start()
 
     # Run bot
     bot.run(TOKEN)
