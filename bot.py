@@ -11,14 +11,24 @@ import os
 
 
 #* Setup
-app     = Flask(__name__)
 intents = discord.Intents.default()
-bot     = cmd.Bot(command_prefix='!', intents=intents)
+intents.guilds = True   # Allow the bot to access guild (server) data
+intents.messages = True  # Allow the bot to send messages
+bot = cmd.Bot(command_prefix='!', intents=intents)
+
+app = Flask(__name__)
 
 #* Environment variables
 TOKEN         = getenv('DISCORD_BOT_TOKEN')
-PUSH_CHANNEL  = int(getenv("PUSH_CHANNEL")) 
+PUSH_CHANNEL  = int(getenv("PUSH_CHANNEL"))  # Ensure this is an int (Discord channel ID)
 GITHUB_SECRET = getenv("GITHUB_SECRET")
+
+
+# Ensure bot is ready before processing any tasks
+@bot.event
+async def on_ready():
+    print(f'Bot has connected to Discord as {bot.user}')
+
 
 # Route for GitHub webhook
 @app.route('/github-webhook', methods=['POST'])
@@ -62,6 +72,7 @@ def githubWebhook() -> tuple[str, int]:
         )
 
         # Send the message to Discord
+        print(f"Attempting to send message to channel ID: {PUSH_CHANNEL}", file=__stderr__)
         chan = bot.get_channel(PUSH_CHANNEL)
         
         if chan:
@@ -73,12 +84,13 @@ def githubWebhook() -> tuple[str, int]:
     
     else: 
         abort(400)
-        
+
 
 def runFlask() -> None: 
     """ Run Flask app in a separate thread """
     port = int(os.getenv("PORT", 5000))  # Use the port Heroku assigns
     app.run(host='0.0.0.0', port=port)
+
 
 if __name__ == "__main__": 
     flaskThread = Thread(target=runFlask)
