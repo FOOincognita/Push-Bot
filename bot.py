@@ -8,7 +8,7 @@ import hashlib
 
 # Environment variables
 TOKEN = os.getenv('DISCORD_BOT_TOKEN')
-PUSH_CHANNEL_ID = int(os.getenv("PUSH_CHANNEL"))  # Discord channel ID
+PUSH_CHANNEL_ID = 1293643953048125535  # Help channel
 GITHUB_SECRET = os.getenv("GITHUB_SECRET")
 
 # Set up Discord bot
