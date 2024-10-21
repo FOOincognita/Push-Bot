@@ -24,8 +24,11 @@ async def on_ready():
 # Async function to send commit messages (triggered by the Quart webhook)
 async def send_commit_message(repo_name: str, username: str, commit_msg: str):
     await bot_ready.wait()
+    print(f"Attempting to send message to channel ID: {PUSH_CHANNEL_ID}")  # Debugging log
     channel = bot.get_channel(PUSH_CHANNEL_ID)
+    
     if channel:
+        print("Channel found, sending message...")  # Debugging log
         embed = discord.Embed(
             title=f"New Commit in {repo_name}",
             color=0x00ff00
@@ -34,7 +37,7 @@ async def send_commit_message(repo_name: str, username: str, commit_msg: str):
         embed.add_field(name="Message", value=commit_msg, inline=False)
         await channel.send(embed=embed)
     else:
-        print("[ERROR]: Channel not found")
+        print("[ERROR]: Channel not found")  # Debugging log
 
 if __name__ == "__main__":
     bot.run(TOKEN)

@@ -32,6 +32,10 @@ async def github_webhook():
     repo_name = payload['repository']['name']
     commit_msg = payload['head_commit']['message']
 
+    # Add debugging logs
+    print(f"Commit received: {username} committed '{commit_msg}' to {repo_name}")
+    print("Calling send_commit_message()")
+
     # Call the Discord bot function to send the commit message
     asyncio.create_task(send_commit_message(repo_name, username, commit_msg))
 
