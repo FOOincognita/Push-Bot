@@ -1,18 +1,21 @@
 import os
 import discord
 from discord.ext import commands
+from aiohttp import web
+import hmac
+import hashlib
 import asyncio
-
-# Set up Discord bot
-intents = discord.Intents.default()
-intents.guilds = True
-intents.messages = True  # Required to send messages
-intents.message_content = True  # If message content access is needed
-bot = commands.Bot(command_prefix='!', intents=intents)
 
 # Environment variables
 TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 PUSH_CHANNEL_ID = int(os.getenv("PUSH_CHANNEL"))  # Discord channel ID
+GITHUB_SECRET = os.getenv("GITHUB_SECRET")
+
+# Set up Discord bot
+intents = discord.Intents.default()
+intents.guilds = True
+intents.messages = True
+bot = commands.Bot(command_prefix='!', intents=intents)
 
 # Global variable to check if bot is ready
 bot_ready = asyncio.Event()
@@ -22,14 +25,11 @@ async def on_ready():
     print(f'Bot has connected to Discord as {bot.user}')
     bot_ready.set()
 
-# Async function to send commit messages (triggered by the Quart webhook)
+# Async function to send commit messages
 async def send_commit_message(repo_name: str, username: str, commit_msg: str):
-    await bot_ready.wait()  # Ensure bot is ready
-    print(f"Attempting to send message to channel ID: {PUSH_CHANNEL_ID}")  # Debugging log
+    await bot_ready.wait()
     channel = bot.get_channel(PUSH_CHANNEL_ID)
-    
     if channel:
-        print("Channel found, sending message...")  # Debugging log
         embed = discord.Embed(
             title=f"New Commit in {repo_name}",
             color=0x00ff00
@@ -38,7 +38,48 @@ async def send_commit_message(repo_name: str, username: str, commit_msg: str):
         embed.add_field(name="Message", value=commit_msg, inline=False)
         await channel.send(embed=embed)
     else:
-        print("[ERROR]: Channel not found")  # Debugging log
+        print("[ERROR]: Channel not found")
 
-if __name__ == "__main__":
-    bot.run(TOKEN)
+# Set up aiohttp web server
+async def handle_webhook(request):
+    # Verify the request signature
+    signature = request.headers.get('X-Hub-Signature-256')
+    if signature is None:
+        return web.Response(status=403)
+    sha_name, signature = signature.split('=')
+    if sha_name != 'sha256':
+        return web.Response(status=403)
+
+    body = await request.read()
+    mac = hmac.new(bytes(GITHUB_SECRET, 'utf-8'), msg=body, digestmod='sha256')
+    if not hmac.compare_digest(mac.hexdigest(), signature):
+        return web.Response(status=403)
+
+    # Parse Payload
+    payload = await request.json()
+    username = payload['pusher']['name']
+    repo_name = payload['repository']['name']
+    commit_msg = payload['head_commit']['message']
+
+    # Schedule the send_commit_message function
+    asyncio.create_task(send_commit_message(repo_name, username, commit_msg))
+
+    return web.Response(status=200)
+
+app = web.Application()
+app.router.add_post('/github-webhook', handle_webhook)
+
+# Run both bot and web server
+async def main():
+    # Start the web server
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = int(os.getenv("PORT", 5000))
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    await site.start()
+
+    # Start the Discord bot
+    await bot.start(TOKEN)
+
+if __name__ == '__main__':
+    asyncio.run(main())

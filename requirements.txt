@@ -2,5 +2,4 @@ discord.py
 flask
 requests
 asyncio
-quart
-hypercorn
+aiohttp
