@@ -6,7 +6,8 @@ import asyncio
 # Set up Discord bot
 intents = discord.Intents.default()
 intents.guilds = True
-intents.messages = True
+intents.messages = True  # Required to send messages
+intents.message_content = True  # If message content access is needed
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 # Environment variables
@@ -23,7 +24,7 @@ async def on_ready():
 
 # Async function to send commit messages (triggered by the Quart webhook)
 async def send_commit_message(repo_name: str, username: str, commit_msg: str):
-    await bot_ready.wait()
+    await bot_ready.wait()  # Ensure bot is ready
     print(f"Attempting to send message to channel ID: {PUSH_CHANNEL_ID}")  # Debugging log
     channel = bot.get_channel(PUSH_CHANNEL_ID)
     

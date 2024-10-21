@@ -3,7 +3,7 @@ from quart import Quart, request, abort
 import hmac
 import hashlib
 import asyncio
-from bot import send_commit_message  # Import the send_commit_message function from bot.py
+from bot import send_commit_message, bot_ready  # Import the send_commit_message and bot_ready function from bot.py
 
 # Set up Quart app
 app = Quart(__name__)
@@ -36,8 +36,12 @@ async def github_webhook():
     print(f"Commit received: {username} committed '{commit_msg}' to {repo_name}")
     print("Calling send_commit_message()")
 
-    # Call the Discord bot function to send the commit message
-    asyncio.create_task(send_commit_message(repo_name, username, commit_msg))
+    # Wait until the bot is ready
+    await bot_ready.wait()
+
+    # Run the send_commit_message in the bot's event loop
+    loop = asyncio.get_event_loop()
+    loop.create_task(send_commit_message(repo_name, username, commit_msg))
 
     return '', 200
 
