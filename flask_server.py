@@ -2,14 +2,14 @@ from os import getenv
 from flask import Flask, request, abort
 import hmac
 import hashlib
-import os
-
+import requests
 
 #* Setup Flask
 app = Flask(__name__)
 
 #* Environment variables
 GITHUB_SECRET = getenv("GITHUB_SECRET")
+WORKER_URL = "http://localhost:5001/send_commit"  # Local request to worker
 
 # Route for GitHub webhook
 @app.route('/github-webhook', methods=['POST'])
@@ -18,38 +18,51 @@ def githubWebhook() -> tuple[str, int]:
         # Verify the request signature
         if (signature := request.headers.get('X-Hub-Signature-256')) is None: 
             abort(403)
-            
+
         _, signature = signature.split('=')
-        
+
         mac = hmac.new(
             bytes(GITHUB_SECRET, 'utf-8'), 
             digestmod = hashlib.sha256,
-            msg       = request.data
+            msg=request.data
         )
-            
+
         if not hmac.compare_digest(mac.hexdigest(), signature):
             abort(403)
 
         #* Parse Payload
-        payload   = request.json
-        username  = payload['pusher']['name']
-        repoName  = payload['repository']['name']
-        commitMsg = payload['head_commit']['message']
+        payload = request.json
+        username = payload['pusher']['name']
+        repo_name = payload['repository']['name']
+        commit_msg = payload['head_commit']['message']
 
-        # Log the payload for now (we'll have the worker send the message)
-        print(f"Commit received: {username} committed '{commitMsg}' to {repoName}")
+        # Log the payload for now
+        print(f"Commit received: {username} committed '{commit_msg}' to {repo_name}")
+
+        # Send the commit data to the worker (Discord bot)
+        data = {
+            'repo_name': repo_name,
+            'username': username,
+            'commit_msg': commit_msg
+        }
+        try:
+            # Send a POST request to the worker dyno
+            response = requests.post(WORKER_URL, json=data)
+            print(f"Worker response: {response.status_code}")
+        except Exception as e:
+            print(f"Error sending to worker: {e}")
 
         return '', 200
-    
-    else: 
+
+    else:
         abort(400)
 
 
-def runFlask() -> None: 
+def runFlask() -> None:
     """ Run Flask app in the web dyno """
-    port = int(os.getenv("PORT", 5000))  # Use the port Heroku assigns
+    port = int(getenv("PORT", 5000))  # Use the port Heroku assigns
     app.run(host='0.0.0.0', port=port)
 
 
-if __name__ == "__main__": 
+if __name__ == "__main__":
     runFlask()
