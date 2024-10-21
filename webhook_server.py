@@ -3,7 +3,7 @@ from quart import Quart, request, abort
 import hmac
 import hashlib
 import asyncio
-from bot import send_commit_message, bot_ready  # Import the send_commit_message and bot_ready function from bot.py
+from bot import send_commit_message, bot_ready  # Import the function and bot ready event
 
 # Set up Quart app
 app = Quart(__name__)
@@ -39,10 +39,10 @@ async def github_webhook():
     # Wait until the bot is ready
     await bot_ready.wait()
 
-    # Run the send_commit_message in the bot's event loop
-    loop = asyncio.get_event_loop()
-    loop.create_task(send_commit_message(repo_name, username, commit_msg))
+    # Schedule the send_commit_message function as a background task
+    asyncio.create_task(send_commit_message(repo_name, username, commit_msg))
 
+    # Return immediately to avoid request timeout
     return '', 200
 
 if __name__ == "__main__":
