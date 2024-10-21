@@ -1,10 +1,10 @@
 import os
 import discord
 from discord.ext import commands
+import asyncio
 from aiohttp import web
 import hmac
 import hashlib
-import asyncio
 
 # Environment variables
 TOKEN = os.getenv('DISCORD_BOT_TOKEN')
@@ -23,13 +23,18 @@ bot_ready = asyncio.Event()
 @bot.event
 async def on_ready():
     print(f'Bot has connected to Discord as {bot.user}')
+    print("Guilds the bot is connected to:")
+    for guild in bot.guilds:
+        print(f"- {guild.name} (ID: {guild.id})")
     bot_ready.set()
 
 # Async function to send commit messages
 async def send_commit_message(repo_name: str, username: str, commit_msg: str):
     await bot_ready.wait()
-    channel = bot.get_channel(PUSH_CHANNEL_ID)
-    if channel:
+    try:
+        print(f"Attempting to fetch channel ID: {PUSH_CHANNEL_ID}")  # Debugging log
+        channel = await bot.fetch_channel(PUSH_CHANNEL_ID)
+        print("Channel fetched successfully, sending message...")  # Debugging log
         embed = discord.Embed(
             title=f"New Commit in {repo_name}",
             color=0x00ff00
@@ -37,8 +42,12 @@ async def send_commit_message(repo_name: str, username: str, commit_msg: str):
         embed.add_field(name="User", value=username, inline=True)
         embed.add_field(name="Message", value=commit_msg, inline=False)
         await channel.send(embed=embed)
-    else:
+    except discord.NotFound:
         print("[ERROR]: Channel not found")
+    except discord.Forbidden:
+        print("[ERROR]: Bot does not have permissions to access the channel")
+    except discord.HTTPException as e:
+        print(f"[ERROR]: Failed to fetch channel due to HTTPException: {e}")
 
 # Set up aiohttp web server
 async def handle_webhook(request):
