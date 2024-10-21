@@ -37,7 +37,7 @@ def githubWebhook() -> tuple[str, int]:
         commit_msg = payload['head_commit']['message']
 
         # Log the payload for now
-        print(f"Commit received: {username} committed '{commit_msg}' to {repo_name}")
+        print(f"**PUSH:**\nCommit to {repo_name} by {username}\nMessage:'{commit_msg}'")
 
         # Send the commit data to the worker (Discord bot)
         data = {
