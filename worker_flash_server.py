@@ -1,8 +1,9 @@
 from os import getenv
+from flask import Flask, request
 import discord
 from discord.ext import commands as cmd
-from flask import Flask, request
-from threading import Thread
+import threading
+import asyncio
 
 #* Setup Discord Bot
 intents = discord.Intents.default()
@@ -10,19 +11,18 @@ intents.guilds = True
 intents.messages = True
 bot = cmd.Bot(command_prefix='!', intents=intents)
 
-#* Flask app to handle communication between web dyno and worker
+#* Setup Flask
 app = Flask(__name__)
 
 #* Environment variables
 TOKEN = getenv('DISCORD_BOT_TOKEN')
 PUSH_CHANNEL = int(getenv("PUSH_CHANNEL"))  # Ensure this is an int (Discord channel ID)
 
-# Ensure bot is ready before processing any tasks
 @bot.event
 async def on_ready():
     print(f'Bot has connected to Discord as {bot.user}')
 
-# Endpoint to receive POST requests from the web dyno
+# Endpoint for receiving commit data
 @app.route('/send_commit', methods=['POST'])
 def send_commit():
     data = request.json
@@ -30,7 +30,12 @@ def send_commit():
     username = data.get('username')
     commit_msg = data.get('commit_msg')
 
-    # Use run_coroutine_threadsafe to run async code within Flask
+    # Run the bot task to send the commit message
+    asyncio.run(send_commit_message(repo_name, username, commit_msg))
+    return "Message sent", 200
+
+# Send commit message to the Discord channel
+async def send_commit_message(repo_name, username, commit_msg):
     channel = bot.get_channel(PUSH_CHANNEL)
     if channel:
         embed = discord.Embed(
@@ -39,20 +44,19 @@ def send_commit():
         )
         embed.add_field(name="User", value=username, inline=True)
         embed.add_field(name="Message", value=commit_msg, inline=False)
-        # Run async coroutine to send the message
-        bot.loop.create_task(channel.send(embed=embed))
-        return "Message sent", 200
+        await channel.send(embed=embed)
     else:
-        return "Channel not found", 404
+        print("[ERROR]: Channel not found")
 
-# Run Flask server
+# Run Flask server in a separate thread
 def run_flask():
-    app.run(host="0.0.0.0", port=5001)
+    port = int(getenv("PORT", 5001))  # Use the port Heroku assigns
+    app.run(host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
-    # Run Flask in a separate thread
-    flask_thread = Thread(target=run_flask)
+    # Run Flask in a thread
+    flask_thread = threading.Thread(target=run_flask)
     flask_thread.start()
 
-    # Run Discord bot
+    # Run the Discord bot
     bot.run(TOKEN)

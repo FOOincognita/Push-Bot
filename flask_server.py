@@ -1,19 +1,21 @@
-from os import getenv
 from flask import Flask, request, abort
+import os
 import hmac
 import hashlib
 import requests
 
-#* Setup Flask
+# Set the public URL for the worker dyno
+WORKER_URL = "https://repo-bot-0cc1404b0c26.herokuapp.com/send_commit"  # Replace with your actual Heroku URL
+
+# Set up Flask
 app = Flask(__name__)
 
 #* Environment variables
-GITHUB_SECRET = getenv("GITHUB_SECRET")
-WORKER_URL = "http://localhost:5001/send_commit"  # Local request to worker
+GITHUB_SECRET = os.getenv("GITHUB_SECRET")
 
 # Route for GitHub webhook
 @app.route('/github-webhook', methods=['POST'])
-def githubWebhook() -> tuple[str, int]:
+def githubWebhook():
     if request.method == 'POST':
         # Verify the request signature
         if (signature := request.headers.get('X-Hub-Signature-256')) is None: 
@@ -23,7 +25,7 @@ def githubWebhook() -> tuple[str, int]:
 
         mac = hmac.new(
             bytes(GITHUB_SECRET, 'utf-8'), 
-            digestmod = hashlib.sha256,
+            digestmod=hashlib.sha256,
             msg=request.data
         )
 
@@ -37,7 +39,7 @@ def githubWebhook() -> tuple[str, int]:
         commit_msg = payload['head_commit']['message']
 
         # Log the payload for now
-        print(f"**PUSH:**\nCommit to {repo_name} by {username}\nMessage:'{commit_msg}'")
+        print(f"Commit received: {username} committed '{commit_msg}' to {repo_name}")
 
         # Send the commit data to the worker (Discord bot)
         data = {
@@ -60,7 +62,7 @@ def githubWebhook() -> tuple[str, int]:
 
 def runFlask() -> None:
     """ Run Flask app in the web dyno """
-    port = int(getenv("PORT", 5000))  # Use the port Heroku assigns
+    port = int(os.getenv("PORT", 5000))  # Use the port Heroku assigns
     app.run(host='0.0.0.0', port=port)
 
 
