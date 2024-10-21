@@ -9,6 +9,7 @@ import hashlib
 from sys import __stderr__
 import os
 
+
 #* Setup
 app     = Flask(__name__)
 intents = discord.Intents.default()
