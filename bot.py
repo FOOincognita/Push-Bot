@@ -1,13 +1,15 @@
-from os import getenv
-import discord
-from discord.ext import commands as cmd
-from flask import Flask, request, abort
-from threading import Thread
-from asyncio import run_coroutine_threadsafe as coroutine
+
+import os
 import hmac
 import hashlib
+import discord
+from os import getenv
 from sys import __stderr__
-import os
+from threading import Thread
+from discord.ext import commands as cmd
+from flask import Flask, request, abort
+from asyncio import run_coroutine_threadsafe as coroutine
+from datetime import datetime as dt, timezone as tz, timedelta as td
 
 ## Setup
 #* Intents
@@ -19,22 +21,14 @@ bot = cmd.Bot(command_prefix='!', intents=intents)
 #* Flask
 app = Flask(__name__)
 
-def runFlask() -> None: 
-    """ Run Flask app in a separate thread """
-    app.run(
-        host = "0.0.0.0", 
-        port = int(os.getenv("PORT", 5000))
-    )
-
 #* Environment vars & consts
 TOKEN         = getenv('DISCORD_BOT_TOKEN')
 PUSH_CHANNEL  = 1296513687611244546
 GITHUB_SECRET = getenv("GITHUB_SECRET")
 
-
 #* Notify when bot ready
 @bot.event
-async def on_ready():
+async def on_ready() -> None:
     print(f'Bot has connected to Discord as {bot.user}')
 
 ## GitHub Goodness
@@ -57,29 +51,47 @@ def githubWebhook() -> tuple[str, int]:
         if not hmac.compare_digest(mac.hexdigest(), signature):
             abort(403)
             
-        #* Parse Payload
+        #> Parse Payload
         payload   = request.json
         username  = payload['pusher']['name']
         repoName  = payload['repository']['name']
         commitMsg = payload['head_commit']['message']
+        commitUrl = payload['head_commit']['url']
+        repoUrl   = payload['repository']['html_url']
+        branch    = payload['ref'].split('/')[-1] 
 
-        #* Create embed msg
         embed = discord.Embed(
             title = f"New Commit in {repoName}", 
-            color = 0x00ff00
+            description = f"**{username}** pushed to **[{repoName}]({repoUrl})** on branch **{branch}**",
+            color = 0x06ffdd, #? Aqua :3
+            timestamp = dt.now(tz(td(hours=-6)))
         )
         embed.add_field(
-            name   = "User", 
+            name   = "Commit Message", 
+            value  = commitMsg, 
+            inline = False
+        )
+        embed.add_field(
+            name   = "GitHub User", 
             value  = username, 
             inline = True
         )
         embed.add_field(
-            name   = "Message", 
-            value  = commitMsg, 
+            name   = "Branch", 
+            value  = branch, 
+            inline = True
+        )
+        embed.add_field(
+            name   = "Commit URL", 
+            value  = f"[View Commit]({commitUrl})", 
             inline = False
         )
+        embed.set_footer(
+            text="GitHub", 
+            icon_url="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+        )
 
-        #* Send msg to Discord
+        #> Send msg to Discord
         print(f"Attempting to send message to channel ID: {PUSH_CHANNEL}", file=__stderr__)
         chan = bot.get_channel(PUSH_CHANNEL)
         
@@ -89,6 +101,14 @@ def githubWebhook() -> tuple[str, int]:
         return '', 200
     
     else: abort(400)
+    
+    
+def runFlask() -> None: 
+    """ Run Flask app in a separate thread """
+    app.run(
+        host = "0.0.0.0", 
+        port = int(os.getenv("PORT", 5000))
+    )
 
 ## Main
 if __name__ == "__main__": 
