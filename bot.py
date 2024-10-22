@@ -12,29 +12,29 @@ import os
 
 #* Setup
 intents = discord.Intents.default()
-intents.guilds = True   # Allow the bot to access guild (server) data
-intents.messages = True  # Allow the bot to send messages
+intents.guilds = True   
+intents.messages = True
 bot = cmd.Bot(command_prefix='!', intents=intents)
 
 app = Flask(__name__)
 
-#* Environment variables
+#* Environment vars & consts
 TOKEN         = getenv('DISCORD_BOT_TOKEN')
 PUSH_CHANNEL  = 1296513687611244546
 GITHUB_SECRET = getenv("GITHUB_SECRET")
 
 
-# Ensure bot is ready before processing any tasks
+#* Notify when bot ready
 @bot.event
 async def on_ready():
     print(f'Bot has connected to Discord as {bot.user}')
 
 
-# Route for GitHub webhook
+#* GitHub webhook
 @app.route('/github-webhook', methods=['POST'])
 def githubWebhook() -> tuple[str, int]:
     if request.method == 'POST':
-        # Verify the request signature
+        #> Verify signature
         if (signature := request.headers.get('X-Hub-Signature-256')) is None: 
             abort(403)
             
@@ -71,7 +71,7 @@ def githubWebhook() -> tuple[str, int]:
             inline = False
         )
 
-        # Send the message to Discord
+        #* Send msg to Discord
         print(f"Attempting to send message to channel ID: {PUSH_CHANNEL}", file=__stderr__)
         chan = bot.get_channel(PUSH_CHANNEL)
         
