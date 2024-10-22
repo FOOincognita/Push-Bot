@@ -9,14 +9,22 @@ import hashlib
 from sys import __stderr__
 import os
 
-
-#* Setup
-intents = discord.Intents.default()
-intents.guilds = True   
+## Setup
+#* Intents
+intents          = discord.Intents.default()
+intents.guilds   = True   
 intents.messages = True
 bot = cmd.Bot(command_prefix='!', intents=intents)
 
+#* Flask
 app = Flask(__name__)
+
+def runFlask() -> None: 
+    """ Run Flask app in a separate thread """
+    app.run(
+        host = "0.0.0.0", 
+        port = int(os.getenv("PORT", 5000))
+    )
 
 #* Environment vars & consts
 TOKEN         = getenv('DISCORD_BOT_TOKEN')
@@ -29,8 +37,8 @@ GITHUB_SECRET = getenv("GITHUB_SECRET")
 async def on_ready():
     print(f'Bot has connected to Discord as {bot.user}')
 
-
-#* GitHub webhook
+## GitHub Goodness
+#* Webhook & msg send
 @app.route('/github-webhook', methods=['POST'])
 def githubWebhook() -> tuple[str, int]:
     if request.method == 'POST':
@@ -75,23 +83,14 @@ def githubWebhook() -> tuple[str, int]:
         print(f"Attempting to send message to channel ID: {PUSH_CHANNEL}", file=__stderr__)
         chan = bot.get_channel(PUSH_CHANNEL)
         
-        if chan:
-            coroutine(chan.send(embed=embed), bot.loop)
-        else:    
-            print("[ERROR]: Channel not found", file=__stderr__)
+        if chan: coroutine(chan.send(embed=embed), bot.loop)
+        else:    print("[ERROR]: Channel not found", file=__stderr__)
 
         return '', 200
     
-    else: 
-        abort(400)
+    else: abort(400)
 
-
-def runFlask() -> None: 
-    """ Run Flask app in a separate thread """
-    port = int(os.getenv("PORT", 5000))  # Use the port Heroku assigns
-    app.run(host='0.0.0.0', port=port)
-
-
+## Main
 if __name__ == "__main__": 
     flaskThread = Thread(target=runFlask)
     flaskThread.start()
