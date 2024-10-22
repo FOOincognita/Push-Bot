@@ -61,34 +61,24 @@ def githubWebhook() -> tuple[str, int]:
         branch    = payload['ref'].split('/')[-1] 
 
         embed = discord.Embed(
-            title = f"New Commit in {repoName}", 
-            description = f"**{username}** pushed to **[{repoName}]({repoUrl})** on branch **{branch}**",
-            color = 0x06ffdd, #? Aqua :3
-            timestamp = dt.now(tz(td(hours=-6)))
+            title       = f"New Commit in [{repoName}]({repoUrl})", 
+            description = f"*{commitMsg}*\n",
+            color       = 0x06ffdd, #? Aqua :3
+            timestamp   = dt.now(tz(td(hours=-6)))
         )
         embed.add_field(
-            name   = "Commit Message", 
-            value  = commitMsg, 
-            inline = False
-        )
-        embed.add_field(
-            name   = "GitHub User", 
-            value  = username, 
+            name   = "\u200b", 
+            value  = f"by **{username}** in branch **{branch}**", 
             inline = True
         )
         embed.add_field(
-            name   = "Branch", 
-            value  = branch, 
-            inline = True
-        )
-        embed.add_field(
-            name   = "Commit URL", 
-            value  = f"[View Commit]({commitUrl})", 
+            name   = "\u200b", 
+            value  = f"[View Changes]({commitUrl})\n", 
             inline = False
         )
         embed.set_footer(
-            text="GitHub", 
-            icon_url="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+            text     = "GitHub", 
+            icon_url = "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
         )
 
         #> Send msg to Discord
