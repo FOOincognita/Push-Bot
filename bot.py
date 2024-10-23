@@ -57,8 +57,8 @@ def githubWebhook() -> tuple[str, int]:
         repoName  = payload['repository']['name']
         repoURL   = payload['repository']['html_url']
         branch    = payload['ref'].split('/')[-1]
-        commitMsg = "Oopsie Daisies: No commit msg :("
-        commitURL = repoURL
+        commitMsg = "Oopsie Daisies: No commit msg :(" #! Fallback commit msg
+        commitURL = repoURL                            #! Fallback commit link
         
         if commits := payload.get('commits', []):
             commitMsg = commits[-1]['message']
