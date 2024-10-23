@@ -51,18 +51,23 @@ def githubWebhook() -> tuple[str, int]:
         if not hmac.compare_digest(mac.hexdigest(), signature):
             abort(403)
             
-        #> Parse Payload
+        #* Parse Payload
         payload   = request.json
         username  = payload['pusher']['name']
         repoName  = payload['repository']['name']
-        commitMsg = payload['head_commit']['message']
-        commitUrl = payload['head_commit']['url']
-        repoUrl   = payload['repository']['html_url']
-        branch    = payload['ref'].split('/')[-1] 
+        repoURL   = payload['repository']['html_url']
+        branch    = payload['ref'].split('/')[-1]
+        commitMsg = "Oopsie Daisies: No commit msg :("
+        commitURL = repoURL
+        
+        if commits := payload.get('commits', []):
+            commitMsg = commits[-1]['message']
+            commitURL = commits[-1]['url']
 
+        #* Create embed
         embed = discord.Embed(
-            title       = f"New Commit in [{repoName}]({repoUrl})", 
-            description = f"*{commitMsg}*\n",
+            title       = f"New Commit in {repoName}", 
+            description = f"**Msg:** *{commitMsg}*\n",
             color       = 0x06ffdd, #? Aqua :3
             timestamp   = dt.now(tz(td(hours=-6)))
         )
@@ -72,8 +77,8 @@ def githubWebhook() -> tuple[str, int]:
             inline = True
         )
         embed.add_field(
-            name   = "\u200b", 
-            value  = f"[View Changes]({commitUrl})\n", 
+            name   = "Links", 
+            value  = f"[View Changes]({commitURL}) | [View Repo]({repoURL})", 
             inline = False
         )
         embed.set_footer(
