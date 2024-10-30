@@ -63,22 +63,22 @@ def githubWebhook() -> tuple[str, int]:
         if commits := payload.get('commits', []):
             commitMsg = commits[-1]['message']
             commitURL = commits[-1]['url']
-
+            
         #* Create embed
         embed = discord.Embed(
             title       = f"New Commit in {repoName}", 
-            description = f"**Msg:** *{commitMsg}*\n",
+            description = f"*{commitMsg}*\n",
             color       = 0x06ffdd, #? Aqua :3
             timestamp   = dt.now(tz(td(hours=-6)))
         )
         embed.add_field(
             name   = "\u200b", 
-            value  = f"by **{username}** in branch **{branch}**", 
+            value  = f"by **{username}** in branch **{branch}**\n", 
             inline = True
         )
         embed.add_field(
-            name   = "Links", 
-            value  = f"[View Changes]({commitURL}) | [View Repo]({repoURL})", 
+            name   = "\u200b", 
+            value  = f"[View Changes]({commitURL}) | [View Repo]({repoURL})\n", 
             inline = False
         )
         embed.set_footer(
